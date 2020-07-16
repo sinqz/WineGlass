@@ -1,0 +1,7 @@
+游戏包名
+com.funhouse.cup
+安卓应用签名
+9a289325d25f3eac748d94641b657e43
+cup.keystore密码
+cup2020618
+

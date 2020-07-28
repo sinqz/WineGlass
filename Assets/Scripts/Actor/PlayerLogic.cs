@@ -1,32 +1,21 @@
 ﻿using System.Collections;
 using UnityEngine;
 using DG.Tweening;
-
-public class PlayerLogic : MonoBehaviour
+using NetWorkAndData.APIS;
+/// <summary>
+/// 玩家移动脚本,包含联网和单机
+/// </summary>
+public sealed class PlayerLogic : MonoBehaviour
 {
     //当前玩家的初始位置
     public PathCell StarPos;
-
     //玩家到达的位置
     public PathCell NowStand { get; set; }
-
-    //玩家的属性
-    public Player m_Player { get { return GetComponent<Player>(); } }
-
-    public int NumTake { get { return 6; } }//刚开始玩家摇到6才可以出棋
-
-    private float moveSpeed = 1;
-    public float MoveSpeed { get { return moveSpeed; } set { moveSpeed = value; } }//玩家的移动速度
-
-
-    private float moveJump = 3;
-    public float MoveJump { get { return moveJump; } set { moveJump = value; } }//玩家跳跃的高度
-
-    private int num;
-    public int Num { get { return num; } set { num = value; } }//移动的步数
-
+    public float MoveSpeed { get; set; } = 0.5f; //玩家的移动速度
+    public float MoveTime { get; set; } = 0.6f;//移动的时间间隔
+    public float MoveJump { get; set; } = 50;//玩家跳跃的高度
     private int NumAir;//特殊步数
-
+    private bool IsOn;//是否到达过顶部,此判断是为了让到达顶部后退的杯子不能在跳跃
 
     private void Awake()
     {
@@ -35,182 +24,184 @@ public class PlayerLogic : MonoBehaviour
     }
 
     /// <summary>
-    /// 玩家移动脚本
+    /// 单机模式判断玩家位置是否都在起始位置
     /// </summary>
-    public void MoveNext()
+    /// <returns></returns>
+    public bool StandInItPos()
     {
-        if (PlayerInitStar())
-            OnPlayerStartMove();
+        return NowStand == StarPos ? true : false;
+    }
+
+    /// <summary>
+    /// 单机模式移动脚本
+    /// </summary>
+    public void StandMoveNext()
+    {
+        EpheMeralActor.TrusteeAction.Clear();
+        if (StandInItPos())
+            StartCoroutine(StandOpenMove()); //杯子出场,清空步数
         else
-            OnPlayerEndMove();
+            StartCoroutine(StandEndMove());
     }
 
-
-    void OnPlayerEndMove()
+    IEnumerator StandOpenMove()
     {
-        StartCoroutine(IEOnEndMove());
-    }
-
-
-    //玩家起始
-    public void OnPlayerStartMove()
-    {
-        if (num < NumTake)//是否可以起飞
+        if (EpheMeralActor.StandDiceCount < 5)
         {
-            //不可起飞，轮到下一名玩家
-            PlayerManger.Instance.DelayTurnToNext();
-            return;
+            EpheMeralActor.StandDiceCount = 0;
+            SceneGameController.Instance.UIGameControl.StandTakeToMove();
+            yield break;
         }
-        MoveAnim(NowStand.NextCell);
-        PlayerManger.Instance.DelayTurnToNext();
+        EpheMeralActor.StandDiceCount = 0;
+        StandMoveAnim(NowStand.NextCell);
     }
 
-
-    //玩家移动
-    IEnumerator IEOnEndMove()
+    /// <summary>
+    /// 单机模式玩家移动
+    /// </summary>
+    /// <returns></returns>
+    IEnumerator StandEndMove()
     {
-
         if (NowStand.NextCell == null)//如果当前玩家下一步格子为空，说明已经到达顶部
         {
-            if (num < 1)//玩家登顶
+            if (EpheMeralActor.StandDiceCount < 1)//玩家登顶
             {
-                Debug.Log("玩家胜利一颗棋子,获得一次投掷机会");
-                NowStand.m_PlayerList.Remove(m_Player);
-                m_Player.Victory = true;//当前小兵胜利
+                GetComponent<Player>().Victory = true;//当前小兵胜利
+                SceneGameController.Instance.UIGameControl.infoPanel[EpheMeralActor.playCount].Info.AllVictory();
+                NowStand.m_PlayerList.Remove(GetComponent<Player>());
+                Debug.Log("玩家胜利一颗棋子");
                 yield break;
             }
-            StartCoroutine(IERetreat());
+            StartCoroutine(StandIERetreat());
+            IsOn = true;
             yield break;
         }
-        if (num < 1)
-        {
+        if (EpheMeralActor.StandDiceCount < 1)
             yield break;
-        }
-        num--;//步数减一
-        if (NowStand.CellType == m_Player.ColorCell && NowStand.ColorCell != null)//当前格子和玩家颜色相同，并且可以登顶的格子不为空，则开始登顶
-            MoveAnim(NowStand.ColorCell);//转向
+        --EpheMeralActor.StandDiceCount;//步数减一
+        if (NowStand.CellType == GetComponent<Player>().ColorCell && NowStand.ColorCell != null)//当前格子和玩家颜色相同，并且可以登顶的格子不为空，则开始登顶
+            StandMoveAnim(NowStand.ColorCell);//转向
         else
-            MoveAnim(NowStand.NextCell);//下一格移动
-        yield return new WaitForSeconds(moveSpeed);
-        yield return StartCoroutine(IEOnEndMove());
+            StandMoveAnim(NowStand.NextCell);//下一格移动
+        yield return new WaitForSeconds(MoveTime);
+        StartCoroutine(StandEndMove());
     }
 
     /// <summary>
     /// 到达顶部步数却没使用完毕，则向后退
     /// </summary>
     /// <returns></returns>
-    IEnumerator IERetreat()
+    IEnumerator StandIERetreat()
     {
-        if (num >= 1)
+        if (EpheMeralActor.StandDiceCount >= 1)
         {
-            num--;
-            MoveAnim(NowStand.LastCell);//玩家向后退
-            yield return new WaitForSeconds(moveSpeed);
-            StartCoroutine(IERetreat());
+            EpheMeralActor.StandDiceCount--;
+            StandMoveAnim(NowStand.LastCell);//玩家向后退
+            yield return new WaitForSeconds(MoveTime);
+            StartCoroutine(StandIERetreat());
             yield break;
         }
         yield break;
     }
 
-
-    //走到了特殊位置的格子
-    bool EMagicAllCell()
+    /// <summary>
+    /// 走到了特殊位置的格子
+    /// </summary>
+    /// <returns></returns>
+    bool StandEMagicAllCell()
     {
-
-        bool MagicNone = false;
-        if (NowStand.CellType == m_Player.ColorCell)//格子颜色相同
+        if (NowStand.CellType == GetComponent<Player>().ColorCell && !IsOn)//玩家颜色和格子颜色相同,并且没登过顶
         {
             switch (NowStand.MagicCell)
             {
                 case MagicCell.Airport:
                     NumAir = 2;//特殊格子移动两步停下
-                    StartCoroutine(EndAllColorCell());
-                    MagicNone = true;
-                    break;
+                    StartCoroutine(StandEndAllColorCell());
+                    return true;
                 case MagicCell.Jump:
                     NumAir = 1;//跳跃格子跳一次
-                    StartCoroutine(EndAllColorCell());//跳一次
-                    MagicNone = true;
-                    break;
+                    StartCoroutine(StandEndAllColorCell());//跳一次
+                    return true;
             }
         }
-        Debug.Log("走到了特殊格子");
-        Debug.Log("NumAir" + NumAir);
-        return MagicNone;
+        return false;
     }
 
-
-    //玩家最终停留位置是否可以飞行(包含特殊格子处理)
-    IEnumerator EndAllColorCell()
+    /// <summary>
+    /// 玩家最终停留位置是否可以飞行(包含特殊格子处理)
+    /// </summary>
+    /// <returns></returns>
+    IEnumerator StandEndAllColorCell()
     {
         if (NumAir >= 1)
         {
-            yield return new WaitForSeconds(moveSpeed);
+            yield return new WaitForSeconds(MoveTime);
             NumAir--;
-            MagicAnim(NowStand.JumpCell);
-            StartCoroutine(EndAllColorCell());
+            StandMagicAnim(NowStand.JumpCell);
+            StartCoroutine(StandEndAllColorCell());
         }
         yield break;
     }
 
-
-    //玩家向指定格子移动
-    public virtual void MoveAnim(PathCell NowStandCell)
+    /// <summary>
+    /// 单机模式玩家向指定格子移动
+    /// </summary>
+    /// <param name="NowStandCell"></param>
+    void StandMoveAnim(PathCell NowStandCell)
     {
-        Debug.Log("Num:" + num);
+        Debug.Log("玩家剩余步数:" + EpheMeralActor.StandDiceCount);
 
-        if (NowStand.m_PlayerList.Contains(m_Player))//安全判断
-            NowStand.m_PlayerList.Remove(m_Player);//先移除当前路径本玩家
-        PathCell m_Cell = NowStandCell;
-        if (m_Cell != null)
+        if (NowStand.m_PlayerList.Contains(GetComponent<Player>()))//安全判断
+            NowStand.m_PlayerList.Remove(GetComponent<Player>());//先移除当前路径本玩家
+        if (NowStandCell != null)
         {
-            NowStand = m_Cell;
-            Vector3 dir = (m_Cell.transform.position - transform.position);
-            Vector3 dirMove = dir + transform.position;
-            transform.DOJump(dirMove, MoveJump, 1, 1);
-            if (num < 1)
+            NowStand = NowStandCell;
+            GetComponent<ImageOverturn>().FlipHorizontal = NowStand.Xturn;
+            transform.DOLocalJump(NowStandCell.rect.anchoredPosition3D, MoveJump, 1, MoveSpeed);
+            if (NowStand == StarPos)//如果是被打回到初始位置,则不需要添加停留位置
+                return;
+            if (EpheMeralActor.StandDiceCount < 1)
             {
-                if (EMagicAllCell())
+                if (StandEMagicAllCell())
                     return;
-                Debug.Log("当前位置停留MoveAnim");
-                NowStand.m_PlayerList.Add(m_Player);//新停留位置添加此元素
+                NowStand.m_PlayerList.Add(GetComponent<Player>());//新停留位置添加此元素
                 NowStand.NowStandAll();
-                PlayerManger.Instance.DelayTurnToNext();
+                SceneGameController.Instance.UIGameControl.StandTakeToMove();
             }
         }
-    }
-
-
-    //特殊移动处理
-    void MagicAnim(PathCell NowStandCell)
-    {
-        if (NowStand.m_PlayerList.Contains(m_Player))//安全判断
-            NowStand.m_PlayerList.Remove(m_Player);//先移除当前路径本玩家
-        PathCell m_Cell = NowStandCell;
-        if (m_Cell != null)
-        {
-            NowStand = m_Cell;
-            Vector3 dir = (m_Cell.transform.position - transform.position);
-            Vector3 dirMove = dir + transform.position;
-            transform.DOJump(dirMove, MoveJump, 1, 1);
-            if (NumAir < 1)
-            {
-                Debug.Log("当前位置停留MagicAnim");
-                NowStand.m_PlayerList.Add(m_Player);//新停留位置添加此元素
-                NowStand.NowStandAll();
-                PlayerManger.Instance.DelayTurnToNext();
-            }
-        }
-
     }
 
     /// <summary>
-    /// 玩家直接移动到设定的位置
+    /// 单机模式特殊格子移动动画处理
     /// </summary>
-    public PathCell MoveSetPosition(int Number)
+    /// <param name="NowStandCell"></param>
+    void StandMagicAnim(PathCell NowStandCell)
+    {
+        if (NowStand.m_PlayerList.Contains(GetComponent<Player>()))//安全判断
+            NowStand.m_PlayerList.Remove(GetComponent<Player>());//先移除当前路径本玩家
+        if (NowStandCell != null)
+        {
+            NowStand = NowStandCell;
+            GetComponent<ImageOverturn>().FlipHorizontal = NowStand.Xturn;
+            transform.DOLocalJump(NowStandCell.rect.anchoredPosition3D, MoveJump, 1, MoveSpeed);
+            if (NumAir < 1)
+            {
+                NowStand.m_PlayerList.Add(GetComponent<Player>());//新停留位置添加此元素
+                NowStand.NowStandAll();
+                SceneGameController.Instance.UIGameControl.StandTakeToMove();
+            }
+        }
+
+    }
+
+
+    /// <summary>
+    /// AI逻辑,给定点数,求出最终位置
+    /// </summary>
+    public PathCell AIMoveSetPosition()
     {
         PathCell cell = NowStand;
-        for (int i = 0; i < Number; i++)
+        for (int i = 0; i < EpheMeralActor.StandDiceCount; i++)
         {
             if (cell.NextCell != null)
                 cell = cell.NextCell;
@@ -219,27 +210,62 @@ public class PlayerLogic : MonoBehaviour
     }
 
 
-
-    //玩家回到初始位置的方法
-    public void InitStartPosition()
+    /// <summary>
+    /// 玩家被打回到初始位置的方法
+    /// </summary>
+    public void InItMoveStart()
     {
-        StartCoroutine(IEInitStartPosition());
-    }
-
-    IEnumerator IEInitStartPosition()
-    {
-        yield return new WaitForSeconds(moveSpeed);
-        MoveAnim(StarPos);
+        if (!StandInItPos())
+            StandMoveAnim(StarPos);
     }
 
 
     /// <summary>
-    /// 判断当前位置是否为初始位置
+    /// 杯子移动
     /// </summary>
-    /// <returns></returns>
-    public bool PlayerInitStar()
+    public void MoveNextCup(string[] pos)
     {
-        return NowStand == StarPos ? true : false;
+        for (int i = 0; i < pos.Length; i++)
+        {
+            Debug.Log(pos[i]);
+            for (int k = 0; k < ActorPathAction.Instance.ActorDic.Count; k++)
+            {
+                if (pos[i] == ActorPathAction.Instance.ActorDic[k].name)
+                {
+                    StandMoveAnim(ActorPathAction.Instance.ActorDic[k]);
+                    //EpheMeralActor.Actions.Enqueue(() => { MoveAnim(ActorPathAction.Instance.ActorDic[k]); });
+                }
+            }
+        }
+        //StartCoroutine(LoadQueue());
     }
 
+    IEnumerator LoadQueue()
+    {
+        while (EpheMeralActor.Actions.Count != 0 && EpheMeralActor.Actions != null)
+        {
+            EpheMeralActor.Actions.Dequeue()?.Invoke();
+            yield return new WaitForSeconds(1f);
+        }
+    }
+
+
+    /// <summary>
+    /// 杯子出场
+    /// </summary>
+    public void ServerTaskNextCup()
+    {
+        Debug.Log("杯子出场");
+        ServerMoveAnim(StarPos.NextCell);
+    }
+
+    public void ServerMoveAnim(PathCell NowStandCell)
+    {
+        NowStand = NowStandCell;
+        if (NowStand != null)
+        {
+            Vector3 dirMove = NowStand.rect.anchoredPosition3D;
+            transform.DOLocalJump(dirMove, MoveJump, 1, MoveSpeed);
+        }
+    }
 }

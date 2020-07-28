@@ -29,11 +29,14 @@ public class InfoPanel : MonoBehaviour
 
     public PlayerInfo Info;
 
-    //初始化
+    /// <summary>
+    /// 多人对战同步初始化
+    /// </summary>
+    /// <param name="uid"></param>
     public void InItInfo(string uid)
     {
         Info.User = new GameUser();
-        Info.User.id= EpheMeralActor.DictUser[uid].id;
+        Info.User.id = EpheMeralActor.DictUser[uid].id;
         Info.User.cupItemId = EpheMeralActor.DictUser[uid].cupItemId;
         Info.User.diceItemId = EpheMeralActor.DictUser[uid].diceItemId;
         Info.User.avatarItemId = EpheMeralActor.DictUser[uid].avatarItemId;
@@ -57,6 +60,30 @@ public class InfoPanel : MonoBehaviour
             UserID.gameObject.SetActive(false);
             Single_ID.gameObject.SetActive(true);
             Single_ID.text = Info.User.userId;
+        }
+    }
+
+    /// <summary>
+    /// 单机模式只对自己赋值
+    /// </summary>
+    public void InItInfo()
+    {
+        NickName.text = Actor.nickName;
+        int IDCount = Actor.itemCount;
+        if (IDCount > 0)
+        {
+            Single_ID.gameObject.SetActive(false);
+            SingleItem.SetActive(true);
+            Single_IDItem.text = IDCount.ToString();
+            UserID.gameObject.SetActive(true);
+            UserID.text = Actor.userId;
+        }
+        else
+        {
+            SingleItem.SetActive(false);
+            UserID.gameObject.SetActive(false);
+            Single_ID.gameObject.SetActive(true);
+            Single_ID.text = Actor.userId;
         }
     }
 }

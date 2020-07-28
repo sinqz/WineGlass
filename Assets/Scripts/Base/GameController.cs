@@ -1,4 +1,5 @@
-﻿using NetWorkAndData;
+﻿using EZFramework;
+using NetWorkAndData;
 using NetWorkAndData.APIS;
 using System.Collections;
 using UnityEngine;
@@ -26,15 +27,15 @@ public class GameController : MonoSingletonTemplateScript<GameController>
 
     protected override void Awake()
     {
-        //游戏全局初始化方法，所有全局资源和参数在此进行初始化
-        Init();
+      
         base.Awake();
         //在整个游戏过程中永久存在
         DontDestroyOnLoad(this);
+        //游戏全局初始化方法，所有全局资源和参数在此进行初始化
+        InIt();
     }
-
     //初始化
-    void Init()
+    void InIt()
     {
         //调用其他控制器的初始化方法初始化其他控制器的资源和参数
         AudioControl = AudioController.Instance;
@@ -57,6 +58,6 @@ public class GameController : MonoSingletonTemplateScript<GameController>
         NetworkControl.OnLoad();
     }
 
-  
+
 
 }

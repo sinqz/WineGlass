@@ -10,12 +10,11 @@ public class SceneGameController : MonoSingletonTemplateScript<SceneGameControll
     public UIGameController UIGameControl;
 
     public ActorPathAction MapActor;
-    //玩家脚本
-    public PlayerInfo[] PlayerScript;
 
     protected override void Awake()
     {
         base.Awake();
+        SceneController.Instance.CurMode = GameMode.Stand;//测试使用
         MapActor.OnLoad();
         UIGameControl.OnLoad();
     }
@@ -26,18 +25,18 @@ public class SceneGameController : MonoSingletonTemplateScript<SceneGameControll
     }
 
     /// <summary>
-    /// 选择移动杯子的方法
+    /// 在线模式选择移动杯子的方法打开杯子点击事件
     /// </summary>
     public void SingCupMethod()
     {
-        for (int i = 0; i < PlayerScript.Length; i++)
+        for (int i = 0; i < UIGameControl.infoPanel.Length; i++)
         {
-            if (PlayerScript[i].User.id == Actor.uid)
+            if (UIGameControl.infoPanel[i].Info.User.id == Actor.uid)
             {
-                for (int k = 0; k < PlayerScript[i].m_Player.Count; k++)
+                for (int k = 0; k < UIGameControl.infoPanel[i].Info.m_Player.Count; k++)
                 {
                     //给当前要移动的杯子注册点击事件点击事件
-                    PlayerScript[i].m_Player[k].DoAtionCup(true);
+                    UIGameControl.infoPanel[i].Info.m_Player[k].SeverDoAtionCup(true);
                 }
             }
         }
@@ -45,22 +44,24 @@ public class SceneGameController : MonoSingletonTemplateScript<SceneGameControll
     }
 
     /// <summary>
-    /// 杯子不可点击的方法
+    /// 在线模式关闭杯子点击事件
     /// </summary>
-    public void StopSingCupMethod()
+    public void StopCupMethod()
     {
-        for (int i = 0; i < PlayerScript.Length; i++)
+        for (int i = 0; i < UIGameControl.infoPanel.Length; i++)
         {
-            if (PlayerScript[i].User.id == Actor.uid)
+            if (UIGameControl.infoPanel[i].Info.User.id == Actor.uid)
             {
-                for (int k = 0; k < PlayerScript[i].m_Player.Count; k++)
+                for (int k = 0; k < UIGameControl.infoPanel[i].Info.m_Player.Count; k++)
                 {
-                    PlayerScript[i].m_Player[k].DoAtionCup(false);
+                    //给当前要移动的杯子注册点击事件点击事件
+                    UIGameControl.infoPanel[i].Info.m_Player[k].SeverDoAtionCup(false);
                 }
             }
         }
-
     }
+
+
 
     /// <summary>
     /// 玩家杯子出场的方法
@@ -69,10 +70,10 @@ public class SceneGameController : MonoSingletonTemplateScript<SceneGameControll
     {
         int id = int.Parse(result[APIS.id].ToString());
         string userId = result[APIS.userId].ToString();
-        for (int i = 0; i < PlayerScript.Length; i++)
+        for (int i = 0; i < UIGameControl.infoPanel.Length; i++)
         {
-            if (userId == PlayerScript[i].User.id)
-                PlayerScript[i].m_Player[id].WorkPlayerLogic.TaskNextCup();
+            if (userId == UIGameControl.infoPanel[i].Info.User.id)
+                UIGameControl.infoPanel[i].Info.m_Player[id].mPlayerLogic.ServerTaskNextCup();
         }
     }
 
@@ -90,14 +91,13 @@ public class SceneGameController : MonoSingletonTemplateScript<SceneGameControll
         {
             pos[i] = data[APIS.pos][i].ToString();
         }
-        for (int i = 0; i < PlayerScript.Length; i++)
+        for (int i = 0; i < UIGameControl.infoPanel.Length; i++)
         {
-            if (userId == PlayerScript[i].User.id)
-                PlayerScript[i].m_Player[id].WorkPlayerLogic.MoveNextCup(pos);
+            if (userId == UIGameControl.infoPanel[i].Info.User.id)
+                UIGameControl.infoPanel[i].Info.m_Player[id].mPlayerLogic.MoveNextCup(pos);
         }
 
     }
-
 
     public void OnEventTrigger(Event _Event)
     {
@@ -118,4 +118,6 @@ public class SceneGameController : MonoSingletonTemplateScript<SceneGameControll
                 break;
         }
     }
+
+
 }

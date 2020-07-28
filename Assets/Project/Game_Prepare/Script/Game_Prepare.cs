@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using EZFramework;
 using NetWorkAndData;
+using NetWorkAndData.APIS;
 /// <summary>
 /// 选择游戏模式枚举
 /// </summary>
@@ -31,17 +32,16 @@ public class Game_Prepare : EZMonoBehaviour
     private Transform thisTra;
 
     public RoomStatus RoomStatus;
-    public GameObject CreareaRoomGame;
+    public Toggle CreareaRoomGame;
 
     #region 单机
-    private GameObject SingTemp;//单机
+    private Toggle SingTemp;//单机
     private Button OpenGame;//进入游戏
     private Button SingleClose;//退出游戏
     #endregion
 
-
     #region 在线对抗
-    private GameObject NetWorkingTemp;//在线对抗
+    private Toggle NetWorkingTemp;//在线对抗
     private Button ExpertClick;
     private Button MiddlerankClick;
     private Button CommonClick;
@@ -50,19 +50,13 @@ public class Game_Prepare : EZMonoBehaviour
     #endregion
 
     #region 好友对战
-    private GameObject FrendTemp;//好友对战
+    private Toggle FrendTemp;//好友对战
     private Button FrendClose;//退出游戏
     #endregion
 
     #region 公共数据
-    private Image ImageOne;
-    private Text TextOne;
-    private Image ImageTwo;
-    private Text TextTwo;
-    private Image ImageThree;
-    private Text TextThree;
-    private Image ImageFour;
-    private Text TextFour;
+    private Image PlayerImage;
+    private Text PlayerName;
     #endregion
 
     public GameModeType ContModeType;//游戏模式枚举
@@ -72,10 +66,10 @@ public class Game_Prepare : EZMonoBehaviour
     public override void Start()
     {
         thisTra = EZUIGroup.Open(this);
-        SingTemp = thisTra.Find("Single_Game").gameObject;
-        NetWorkingTemp = thisTra.Find("NetWorking_Game").gameObject;
-        FrendTemp = thisTra.Find("Frend_Game").gameObject;
-        CreareaRoomGame = thisTra.Find("CreareaRoom_Game").gameObject;
+        SingTemp = thisTra.Find("Single_Game").GetComponent<Toggle>();
+        NetWorkingTemp = thisTra.Find("NetWorking_Game").GetComponent<Toggle>();
+        FrendTemp = thisTra.Find("Frend_Game").GetComponent<Toggle>();
+        CreareaRoomGame = thisTra.Find("CreareaRoom_Game").GetComponent<Toggle>();
         RoomStatus = thisTra.Find("CreareaRoom_Game/MatchingPlayerInfo").GetComponent<RoomStatus>();
     }
 
@@ -84,25 +78,13 @@ public class Game_Prepare : EZMonoBehaviour
         switch (MContType)
         {
             case GameModeType.SingleGame:
-                NetWorkingTemp.SetActive(false);
-                FrendTemp.SetActive(false);
-                CreareaRoomGame.SetActive(false);
-                SingTemp.SetActive(true);
-                OpenGame = thisTra.Find("Single_Game/SingleOpenGame").GetComponent<Button>();
-                ImageOne = thisTra.Find("Single_Game/MatchingPlayerInfo/PlayerOne").GetComponent<Image>();
-                TextOne = thisTra.Find("Single_Game/MatchingPlayerInfo/PlayerOne").GetComponentInChildren<Text>();
-                SingleClose = thisTra.Find("Single_Game/SingleClose").GetComponent<Button>();
-                SingleClose.onClick.AddListener(CloseMethod);
-                OpenGame.onClick.AddListener(OpenGameMethod);
+                SingleGameMethod();
                 break;
             case GameModeType.NetWorKingGame:
                 NetWorkingMethod();
                 break;
             case GameModeType.FriendGame:
-                SingTemp.SetActive(false);
-                NetWorkingTemp.SetActive(false);
-                CreareaRoomGame.SetActive(false);
-                FrendTemp.SetActive(true);
+                FrendTemp.isOn = true;
                 break;
             case GameModeType.CreareaRoomGame:
                 CreareaRoomMethod();
@@ -110,10 +92,29 @@ public class Game_Prepare : EZMonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 进入单机模式
+    /// </summary>
+    void SingleGameMethod()
+    {
+        SingTemp.isOn = true;
+        OpenGame = thisTra.Find("Single_Game/SingleOpenGame").GetComponent<Button>();
+        PlayerImage = thisTra.Find("Single_Game/MatchingPlayerInfo/Player").GetComponent<Image>();
+        //PlayerImage.sprite = Actor.mSprite;
+        PlayerName = PlayerImage.GetComponentInChildren<Text>();
+        PlayerName.text = Actor.nickName;
+        SingleClose = thisTra.Find("Single_Game/SingleClose").GetComponent<Button>();
+        SingleClose.onClick.AddListener(CloseMethod);
+        OpenGame.onClick.AddListener(OpenGameMethod);
+    }
+
+    /// <summary>
+    /// 单机模式进入游戏方法
+    /// </summary>
     void OpenGameMethod()
     {
-        OpenGame.gameObject.SetActive(false);
-        Debug.Log("单机模式简单处理，测试模式还需添加逻辑");
+        OpenGame.gameObject.SetActive(false);//关闭开始游戏按钮
+        SceneController.Instance.CurMode = GameMode.Stand;
         SceneController.Instance.LoadScene(SceneType.ST_GAME, false);
     }
 
@@ -121,15 +122,13 @@ public class Game_Prepare : EZMonoBehaviour
     {
         EZComponent.RemoveConment<Game_Prepare>();
     }
+
     /// <summary>
     /// 进入在线对抗
     /// </summary>
     void NetWorkingMethod()
     {
-        SingTemp.SetActive(false);
-        FrendTemp.SetActive(false);
-        CreareaRoomGame.SetActive(false);
-        NetWorkingTemp.SetActive(true);
+        NetWorkingTemp.isOn = true;
         ExpertClick = thisTra.Find("NetWorking_Game/Expert").GetComponent<Button>();
         MiddlerankClick = thisTra.Find("NetWorking_Game/Middlerank").GetComponent<Button>();
         CommonClick = thisTra.Find("NetWorking_Game/Common").GetComponent<Button>();
@@ -149,10 +148,7 @@ public class Game_Prepare : EZMonoBehaviour
     /// </summary>
     void CreareaRoomMethod()
     {
-        SingTemp.SetActive(false);
-        NetWorkingTemp.SetActive(false);
-        FrendTemp.SetActive(false);
-        CreareaRoomGame.SetActive(true);
+        CreareaRoomGame.isOn = true;
     }
 
     /// <summary>

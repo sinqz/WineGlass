@@ -9,7 +9,6 @@ namespace EZFramework
         private static void OnBeforeSceneLoad()
         {
             DontDestroyOnLoad(new GameObject("[Application]", typeof(InIt)));
-            PlayerPrefs.DeleteAll();
         }
 
         protected override void Awake()
@@ -21,13 +20,6 @@ namespace EZFramework
 
         private void Start()
         {
-            OnLoad();
-        }
-
-        public void OnLoad()
-        {
-
-            EZComponent.AddConment<InItUI>();
             EZComponent.AddConment<MenuBG>();
             EZComponent.AddConment<MenuLogin>();
         }

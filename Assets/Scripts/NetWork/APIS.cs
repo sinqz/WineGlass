@@ -59,6 +59,7 @@ namespace NetWorkAndData
             public static long Diamond { get; set; }
             public static string userId { get; set; }
             public static string uid { get; set; }
+            public static int itemCount { get; set; }
             public static List<Sprite> HeadSprite = new List<Sprite>();
 
             private Actor()
@@ -87,11 +88,37 @@ namespace NetWorkAndData
         public class EpheMeralActor
         {
             private EpheMeralActor() { }
-            public static string nickName;//临时记录名字
-            public static Sprite mSprite;//临时记录进入匹配房间时的初始占位图
+            public static string nickName { get; set; }//临时记录名字
+            public static Sprite mSprite { get; set; }//临时记录进入匹配房间时的初始占位图
             public static Dictionary<string, GameUser> DictUser { get; set; } = new Dictionary<string, GameUser>();//临时记录匹配完毕全部进入游戏时各个玩家的状态
-            public static Player mPlayer;//临时记录当前要移动的杯子
-            public static Queue<Action> Actions = new Queue<Action>();
+            public static Player mPlayer { get; set; }//临时记录当前要移动的杯子
+
+            public static Queue<Action> Actions { get; set; } = new Queue<Action>();//杯子移动方法存储
+
+            /// <summary>
+            /// 托管方法执行
+            /// </summary>
+            public static Queue<Action> TrusteeAction { get; set; } = new Queue<Action>();
+
+            /// <summary>
+            /// 是否在托管
+            /// </summary>
+            public static bool IsTrust { get; set; }
+
+            /// <summary>
+            /// 单机模式骰子点数临时数据存放(单机模式使用)
+            /// </summary>
+            public static int StandDiceCount { get; set; }
+
+            /// <summary>
+            /// 当前移动玩家下标(单机模式使用)
+            /// </summary>
+            public static int playCount { get; set; }
+
+            /// <summary>
+            /// 游戏是否结束
+            /// </summary>
+            public static bool GameOver { get; set; }
         }
     }
 }

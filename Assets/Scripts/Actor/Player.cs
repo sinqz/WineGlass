@@ -33,9 +33,9 @@ public class Player : MonoBehaviour
     /// <summary>
     /// 杯子是否出场
     /// </summary>
-    public bool IsOnTake;
+    public bool IsOnTake { get; set; }
 
-    public NetWorkPlayerLogic WorkPlayerLogic { get { return GetComponent<NetWorkPlayerLogic>(); } }
+    public PlayerLogic mPlayerLogic { get { return GetComponent<PlayerLogic>(); } }
 
     //小兵的阵营
     public colorCell mColorCell;
@@ -54,18 +54,22 @@ public class Player : MonoBehaviour
         set { mVictory = value; }
     }
 
-    public void DoAtionCup(bool IsOn)
+    /// <summary>
+    /// 杯子点击事件绑定和解除
+    /// </summary>
+    /// <param name="IsOn"></param>
+    public void SeverDoAtionCup(bool IsOn)
     {
         if (IsOn)
-            EventListener.AddEventListenr(gameObject).OnClick = CupFunction;
+            EventListener.AddEventListenr(gameObject).OnClick = ServerCupFunction;
         else
             EventListener.RemoveEventListenr(gameObject);
     }
 
-    void CupFunction()
+    void ServerCupFunction()
     {
         //此时杯子不可再次点击
-        SceneGameController.Instance.StopSingCupMethod();
+        SceneGameController.Instance.StopCupMethod();
         if (!IsOnTake)
         {
             //选择完杯子,发送杯子移动的ID
@@ -77,5 +81,26 @@ public class Player : MonoBehaviour
         //选择完杯子
         NetworkController.Instance.Send(new MoveRequest(id));
         EpheMeralActor.mPlayer = this;
+    }
+
+
+    /// <summary>
+    /// 单机模式杯子点击事件
+    /// </summary>
+    public void StandDoAtionCup(bool IsOn)
+    {
+        if (IsOn)
+            EventListener.AddEventListenr(gameObject).OnClick = StandCupFunction;
+        else
+            EventListener.RemoveEventListenr(gameObject);
+    }
+
+    /// <summary>
+    /// 单机模式杯子事件
+    /// </summary>
+    void StandCupFunction()
+    {
+        SceneGameController.Instance.UIGameControl.infoPanel[0].Info.StandCloseDoctionCup();
+        mPlayerLogic.StandMoveNext();
     }
 }

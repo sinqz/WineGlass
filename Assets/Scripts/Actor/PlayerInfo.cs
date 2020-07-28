@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using NetWorkAndData.APIS;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
@@ -6,145 +7,44 @@ using UnityEngine.PlayerLoop;
 using UnityEngine.UI;
 
 //玩家
-public class PlayerInfo : BaseObject
+public class PlayerInfo : MonoBehaviour
 {
     [Header("玩家的棋子")]
     //玩家的棋子
     public List<Player> m_Player;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    public int Number { get { return PlayerManger.NumMobile; } }
-
-    public bool IsRun { get; set; }//是否允许移动
-
-    private string[] Chess = new string[] { "PlayR", "PlayG", "PlayB", "PlayY" };
-
     //角色类型，区分玩家和AI
-    public RoleType mRoleType;
+    private RoleType mRoleType;
     public RoleType RoleType
     {
         get { return mRoleType; }
         set { mRoleType = value; }
     }
 
-    private void Awake()
+
+    public GameUser User { get; set; }
+
+    /// <summary>
+    /// 玩家摇到6的次数
+    /// </summary>
+    public int SixCount { get; set; }
+
+
+
+    private void Start()
     {
         if (mRoleType == RoleType.AI)
             gameObject.AddComponent<AIInfo>();
     }
 
     /// <summary>
-    /// 玩家全部被打回到初始位置
+    /// 单机在线模式通用方法玩家全部被打回到初始位置
     /// </summary>
-    public void OnPlayerAllStar()
+    public void StandPlayerAllStar()
     {
         for (int i = 0; i < m_Player.Count; i++)
         {
-            if (!m_Player[i].WorkPlayerLogic.PlayerInitStar())
-                m_Player[i].WorkPlayerLogic.InitStartPosition();
+            m_Player[i].mPlayerLogic.InItMoveStart();
         }
     }
 
@@ -152,91 +52,103 @@ public class PlayerInfo : BaseObject
     /// 判断玩家的棋子是否全在起始
     /// </summary>
     /// <returns></returns>
-    public bool OnPositionAllStart()
+    public bool StandPositionAllStart()
     {
         for (int i = 0; i < m_Player.Count; i++)
         {
-            if (!m_Player[i].WorkPlayerLogic.PlayerInitStar()) { return false; }
+            if (!m_Player[i].mPlayerLogic.StandInItPos()) { return false; }
         }
         return true;
     }
 
-    public void PlayNext()//执行行动
+    /// <summary>
+    /// 执行移动方法
+    /// </summary>
+    public void StandPlayNext()//执行行动
     {
+        if (EpheMeralActor.GameOver)
+        { Debug.Log("StandPlayNext结束!"); return; }
         if (RoleType == RoleType.AI)//判断当前玩家是否为AI
-            GetComponent<AIInfo>().MoveNext();//执行AI的运动逻辑
-        else//打开玩家的摇骰子面板，玩家自行处理
-            MainPanlUI.Instance.OnEnterDice(true);
+            GetComponent<AIInfo>().StandAIMoveNext();//执行AI的运动逻辑
+        else//打开玩家的骰子按钮,并注册点击事件
+            StartCoroutine(StandDiceOpen());
     }
 
-    void Update()
+    /// <summary>
+    /// 打开摇骰子方法
+    /// </summary>
+    IEnumerator StandDiceOpen()
     {
-
-        if (IsRun)
+        Debug.Log("StandDiceOpen");
+        EpheMeralActor.TrusteeAction.Enqueue(() => //摇骰子方法保存起来,用户点击时使用
         {
+            SceneGameController.Instance.UIGameControl.SingleDice.onClick.Invoke();//自动摇骰子
 
-            if (AllVictory())
+        });
+        yield return new WaitForSeconds(1.3f);
+        SceneGameController.Instance.UIGameControl.SingleDice.gameObject.SetActive(true);
+    }
+
+    /// <summary>
+    /// 单机模式杯子事件(骰子点击事件)
+    /// </summary>
+    /// <param name="diceCount"></param>
+    public void StandDotionCup()
+    {
+        if (EpheMeralActor.StandDiceCount >= 5)
+        {
+            if (EpheMeralActor.StandDiceCount == 6)
             {
-                IsRun = false;
+                ++SixCount;
+                if (SixCount >= 3)
+                {
+                    SixCount = 0;
+                    StandPlayerAllStar();
+                    SceneGameController.Instance.UIGameControl.StandTakeToMove(); //直接下一名玩家
+                    return;
+                }
+                --EpheMeralActor.playCount;//获得再次摇骰子的机会
+                StandOpenDoctionCup();
+                Debug.Log("获得再次摇骰子的机会");
                 return;
             }
-            if (RoleType != RoleType.AI)
-            {
-                if (PlayerManger.Instance.SixPlayerNext())
-                {
-                    //全部打回初始位置
-                    OnPlayerAllStar();
-                    IsRun = false;
-                    PlayerManger.Instance.DelayTurnToNext();
-                    return;
-                }
-                MainPanlUI.Instance.OnEnterDice(false);//关闭骰子面板
-                if (PlayerManger.NumMobile != 6 && OnPositionAllStart())//如果玩家摇到的骰子不为6且此时玩家的所有骰子都在原地则直接跳到下个玩家
-                {
-                    IsRun = false;
-                    PlayerManger.Instance.DelayTurnToNext();
-                    return;
-                }
-                OnChess();//摇完骰子开启摄线检测，选择人物移动
-                IsRun = false;
-            }
-            else
-            {
-                IsRun = false;
-            }
+            StandOpenDoctionCup();
         }
-    }
-
-    //人机交互
-    IEnumerator ClickChess()
-    {
-        Player m_Player = null;
-        while (true)
+        else
         {
-            if (Input.GetMouseButtonDown(0))
-            {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit hit;
-                // bool isColler = Physics.Raycast(ray, out hit, LayerMask.GetMask(Chess[PlayerManger.Instance.movePost]));//匹配模式开启
-                bool isColler = Physics.Raycast(ray, out hit, LayerMask.GetMask(Chess[1]));
-                if (isColler)
-                {
-                    m_Player = hit.collider.gameObject.GetComponent<Player>();
-                    if (m_Player != null)
-                    {
-                        Move(m_Player);
-                        break;
-                    }
-                }
-            }
-            yield return null;
+            if (StandPositionAllStart())
+                SceneGameController.Instance.UIGameControl.StandTakeToMove(); //直接下一名玩家
+            else
+                StandOpenDoctionCup();
         }
-
+        SixCount = 0;
     }
 
-    public void OnChess()
+    /// <summary>
+    /// 单机模式打开杯子点击事件
+    /// </summary>
+    void StandOpenDoctionCup()
     {
-        StartCoroutine(ClickChess());
+        for (int i = 0; i < m_Player.Count; i++)
+            m_Player[i].StandDoAtionCup(true);
+        EpheMeralActor.TrusteeAction.Clear();
+        EpheMeralActor.TrusteeAction.Enqueue(() =>
+        {
+            StandCloseDoctionCup();
+            GetComponent<AIInfo>().AIRobotRating().mPlayerLogic.StandMoveNext();
+            Debug.Log("执行了杯子移动的方法");
+        });
+    }
+
+    /// <summary>
+    /// 单机模式关闭骰子点击事件
+    /// </summary>
+    public void StandCloseDoctionCup()
+    {
+        for (int i = 0; i < m_Player.Count; i++)
+        {
+            m_Player[i].StandDoAtionCup(false);
+        }
     }
 
 
@@ -244,23 +156,22 @@ public class PlayerInfo : BaseObject
     ///判断当前玩家已无飞机(包含游戏结束处理)
     /// </summary>
     /// <returns></returns>
-    public bool AllVictory()
+    public void AllVictory()
     {
-        if (m_Player.Count == 0)
-        {
-            //游戏结束逻辑
-            //GameController.Instance.GameOver(this);
-            return true;
-        }
         for (int i = 0; i < m_Player.Count; i++)
         {
             if (m_Player[i].Victory)
             {
+                Debug.Log("胜利一颗棋子:" + i);
                 Destroy(m_Player[i].gameObject);
                 m_Player.Remove(m_Player[i]);
             }
         }
-        return false;
+        if (m_Player.Count == 0)
+        {
+            Debug.Log("游戏结束");
+            EpheMeralActor.GameOver = true;
+        }
     }
 
     /// <summary>
@@ -269,6 +180,7 @@ public class PlayerInfo : BaseObject
     /// <param name="mRoleType"></param>
     public void SetRoleType(RoleType mRoleType)
     {
+        RoleType = mRoleType;
         switch (mRoleType)
         {
             case RoleType.PLAYER:
@@ -282,26 +194,4 @@ public class PlayerInfo : BaseObject
         }
     }
 
-    /// <summary>
-    /// 移动脚本
-    /// </summary>
-    /// <param name="mPlayer">移动的玩家</param>
-    /// <param name="MoveNumber">移动的步数</param>
-    public void Move(Player mPlayer)
-    {
-        mPlayer.WorkPlayerLogic.Num = Number;
-        mPlayer.WorkPlayerLogic.MoveNext();
-    }
-    /// <summary>
-    /// 移动脚本重载
-    /// </summary>
-    /// <param name="mPlayer">移动的玩家</param>
-    /// <param name="MoveNumber">移动的步数</param>
-    public void Move(Player mPlayer, float moveSpeed, float jumpSpeed)
-    {
-        mPlayer.WorkPlayerLogic.Num = Number;
-        mPlayer.WorkPlayerLogic.MoveJump = jumpSpeed;
-        mPlayer.WorkPlayerLogic.MoveSpeed = moveSpeed;
-        mPlayer.WorkPlayerLogic.MoveNext();
-    }
 }
